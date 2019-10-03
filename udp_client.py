@@ -1,25 +1,32 @@
-#!/usr/bin/env python
-
-"""
-A simple echo client
-"""
-
 import socket
+import time
 import cv2
-import json
+import numpy as np
+import base64
+import pickle
 
-host = '169.254.132.51'
-port = 50058
-size = 1024000000
-cv2.namedWindow("preview")
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s.connect((host,port))
-while True:
+HEADERSIZE = 4
 
-    data = s.recv()
-    #frame=json.loads(data)
+s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+ip = "localhost"
+port = 49000
 
+def start_video():
+    #cv2.startWindowThread()
+    while True:
+        data,client = s.recvfrom(2**16)
+        print(data)
+        nparr = np.frombuffer(pickle.loads(data), np.uint8)
+        frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        #encoded_frame = data[HEADERSIZE:]
+        #encoded_frame = data[1]
+        #frame = base64.b64decode(encoded_frame)
+        cv2.imshow('Ad', frame)
+        cv2.waitKey(1)
 
-    cv2.imshow("preview", data)
+def main():
+    s.sendto(bytes("connect", "utf-8"),(ip,port))
+    print(f'[+] Connected to server...')
+    start_video()
 
-s.close()
+main()

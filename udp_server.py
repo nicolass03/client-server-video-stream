@@ -1,40 +1,45 @@
- #!/usr/bin/env python
-
-
-
 import socket
-
 import cv2
+import pickle
+import time
+import base64
 
-import json
+HEADERSIZE = 4
 
-host = "localhost"
+s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+ip = "localhost"
+port = 49000
 
-port = 50058
+try:
+    s.bind((ip,port))
+    print("[+] Server started on "+ip)
+except socket.error as e:
+    print("[-] Couldn't start server on "+ip)
+connected_clients = set()
+cap = cv2.VideoCapture('video.mp4')
 
-backlog = 5
+def client_thread(address):
+    for i in range(0,2048):
+        if not cap.isOpened():
+            print("Error loading the file.")
+            break
 
-size = 1024
+        else:
+            ret, frame = cap.read()
+            if ret:
+                ret, buffer = cv2.imencode('.jpg', frame)
+                encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 90]
+                #encoded_frame = base64.b64encode(buffer)
+                #data = f"{i:04d}"+str(encoded_frame)
+                data = cv2.imencode('.jpg', frame, encode_param)[1].tostring()
+                s.sendto(pickle.dumps(data), address)
 
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s.bind((host,port))
-s.listen(backlog)
+def main():
+    while True:
+        data,client = s.recvfrom(2**16)
+        if not client in connected_clients:
+            print("[+] Now streaming to {client}")
+            connected_clients.add(client)
+            client_thread(client)
 
-vc=cv2.VideoCapture(0)
-if vc.isOpened():
-
-    rval, frame = vc.read()
-
-while 1:
-
-    client, address = s.accept()
-    rval, frame = vc.read()
-
-    #data = client.recv(size)
-    if rval:
-        #print "recieved data " + str(data)
-        #print "sending data to %s" % str(address)
-
-        #p=json.dumps(frame)
-        client.send(frame)
-    client.close()
+main()
